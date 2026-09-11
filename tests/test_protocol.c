@@ -107,6 +107,11 @@ static int test_parsers(void)
 	ASSERT(rgb[0] == 0xab && rgb[1] == 0xcd && rgb[2] == 0x01);
 	ASSERT(omen_fury_parse_rgb("red", rgb));
 	ASSERT(!omen_fury_parse_slave("C6", &slave) && slave == 0xc6);
+	ASSERT(!omen_fury_parse_slave("1", &slave) && slave == 0xc0);
+	ASSERT(!omen_fury_parse_slave("4", &slave) && slave == 0xc6);
+	ASSERT(!omen_fury_parse_slave("A1", &slave) && slave == 0xc0);
+	ASSERT(!omen_fury_parse_slave("b2", &slave) && slave == 0xc6);
+	ASSERT(omen_fury_parse_slave("5", &slave));
 	ASSERT(omen_fury_parse_slave("C1", &slave));
 	return 0;
 }

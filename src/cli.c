@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define DEFAULT_DEVICE "/dev/omen-fury-wmi"
 #define DEFAULT_BRIGHTNESS 0x20
@@ -35,7 +36,7 @@ static void usage(FILE *stream)
 		"  omen-furyctl [options] static RRGGBB [--brightness 0..255]\n"
 		"  omen-furyctl [options] --experimental raw SLAVE REG VALUE\n\n"
 		"Options:\n"
-		"  --dimm C0|C2|C4|C6  target one DIMM (default: all)\n"
+		"  --dimm 1..4|A1..B2|HEX target one DIMM (default: all)\n"
 		"  --device PATH         character device (default: %s)\n"
 		"  --verbose, -v         print every operation and result\n"
 		"  --dry-run              print the sequence without opening hardware\n"
@@ -156,6 +157,16 @@ int main(int argc, char **argv)
 	if (result) {
 		fprintf(stderr, "Cannot open %s: %s\n", options.device,
 			strerror(-result));
+		if (result == -EACCES && getuid() != 0)
+			fprintf(stderr, "Hint: try running with sudo or check udev rules.\n");
+		else if (result == -ENOENT) {
+			fprintf(stderr, "Hint: the omen_fury_wmi kernel module is not loaded.\n");
+			if (access("/sys/bus/wmi/devices/5FB7F034-2C63-45E9-BE91-3D44E2C707E4-0", F_OK) != 0 &&
+			    access("/sys/bus/wmi/devices/5FB7F034-2C63-45E9-BE91-3D44E2C707E4-1", F_OK) != 0) {
+				fprintf(stderr, "Error: this system does not expose the HP OMEN WMI BIOS interface.\n"
+						"This software requires an HP OMEN desktop to function.\n");
+			}
+		}
 		return 1;
 	}
 	result = omen_fury_transport_get_caps(&transport, &caps);

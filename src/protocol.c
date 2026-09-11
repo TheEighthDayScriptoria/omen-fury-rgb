@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 
 static const uint8_t all_targets[] = { 0xc0, 0xc2, 0xc4, 0xc6 };
@@ -40,8 +41,22 @@ int omen_fury_target_one(struct omen_fury_target_set *targets, uint8_t slave)
 
 int omen_fury_parse_slave(const char *text, uint8_t *slave)
 {
+	static const struct {
+		const char *name;
+		uint8_t value;
+	} aliases[] = {
+		{ "1", 0xc0 }, { "2", 0xc2 }, { "3", 0xc4 }, { "4", 0xc6 },
+		{ "A1", 0xc0 }, { "A2", 0xc2 }, { "B1", 0xc4 }, { "B2", 0xc6 },
+	};
 	char *end;
 	unsigned long value;
+	size_t i;
+
+	for (i = 0; i < sizeof(aliases) / sizeof(aliases[0]); ++i)
+		if (!strcasecmp(text, aliases[i].name)) {
+			*slave = aliases[i].value;
+			return 0;
+		}
 
 	errno = 0;
 	value = strtoul(text, &end, 16);
