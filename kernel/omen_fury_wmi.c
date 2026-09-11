@@ -7,6 +7,7 @@
  */
 #include <linux/acpi.h>
 #include <linux/compat.h>
+#include <linux/dmi.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -27,6 +28,17 @@
 #define HP_WMI_METHOD_ID 2
 #define HP_DATA_CAPACITY 128
 #define HP_PASS_SIGNATURE 0x53534150U
+
+static const struct dmi_system_id omen_fury_dmi_table[] = {
+	{
+		.ident = "HP OMEN Desktop",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+		},
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(dmi, omen_fury_dmi_table);
 
 struct hp_bios_args {
 	u32 signature;
@@ -185,10 +197,11 @@ static struct miscdevice omen_fury_wmi_device = {
 
 static int __init omen_fury_wmi_init(void)
 {
-	if (!wmi_has_guid(HP_WMI_BIOS_GUID)) {
-		pr_info(DRIVER_NAME ": HP WMI GUID not present\n");
+	if (!dmi_check_system(omen_fury_dmi_table))
 		return -ENODEV;
-	}
+
+	if (!wmi_has_guid(HP_WMI_BIOS_GUID))
+		return -ENODEV;
 
 	return misc_register(&omen_fury_wmi_device);
 }
