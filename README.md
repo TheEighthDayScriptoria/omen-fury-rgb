@@ -1,4 +1,4 @@
-# omen-fury-linux
+# omen-fury-rgb
 
 Experimental Linux control for HP OEM Kingston FURY DDR5 lighting on selected
 HP OMEN desktops.

@@ -1,6 +1,6 @@
 [Unit]
 Description=Restore HP OMEN FURY memory lighting
-Documentation=https://github.com/TheEighthDayScriptoria/omen-fury-linux
+Documentation=https://github.com/TheEighthDayScriptoria/omen-fury-rgb
 ConditionPathExists=/dev/omen-fury-wmi
 After=systemd-udev-settle.service
 
