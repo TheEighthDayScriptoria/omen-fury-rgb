@@ -1,0 +1,2 @@
+# Optional non-root access. Create the omen-fury group before installing this rule.
+KERNEL=="omen-fury-wmi", GROUP="omen-fury", MODE="0660", TAG+="systemd"

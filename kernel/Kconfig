@@ -1,0 +1,7 @@
+config OMEN_FURY_WMI
+	tristate "Experimental HP OMEN FURY MLED WMI bridge"
+	depends on ACPI_WMI
+	help
+	  Build a constrained character-device bridge for the HP OMEN memory
+	  lighting WMI operation. This is experimental and intended for selected
+	  HP OMEN systems with HP OEM Kingston FURY memory.

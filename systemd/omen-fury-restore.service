@@ -1,0 +1,13 @@
+[Unit]
+Description=Restore HP OMEN FURY memory lighting
+Documentation=https://github.com/TheEighthDayScriptoria/omen-fury-linux
+ConditionPathExists=/dev/omen-fury-wmi
+After=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+# This is an example. Copy the unit to /etc/systemd/system and edit this line.
+ExecStart=/usr/local/bin/omen-furyctl static 401020 --brightness 32
+
+[Install]
+WantedBy=multi-user.target

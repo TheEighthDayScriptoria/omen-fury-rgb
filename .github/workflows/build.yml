@@ -1,0 +1,20 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  userspace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make userspace test
+
+  kernel:
+    runs-on: ubuntu-latest
+    container: fedora:43
+    steps:
+      - uses: actions/checkout@v4
+      - run: dnf install -y gcc make kernel-devel findutils
+      - run: KDIR=$(find /usr/src/kernels -mindepth 1 -maxdepth 1 -type d | head -1); make module KDIR="$KDIR"
