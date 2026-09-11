@@ -5,11 +5,12 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define OMEN_FURY_WMI_ABI_VERSION 1
+#define OMEN_FURY_WMI_ABI_VERSION 2
 
 #define OMEN_FURY_CAP_MLED_WRITE       (1U << 0)
 #define OMEN_FURY_CAP_KERNEL_VALIDATION (1U << 1)
 #define OMEN_FURY_CAP_SERIALIZED       (1U << 2)
+#define OMEN_FURY_CAP_EXCLUSIVE_SESSION (1U << 3)
 
 #define OMEN_FURY_SLAVE_COUNT 4
 #define OMEN_FURY_REGISTER_COUNT 7
@@ -35,5 +36,7 @@ struct omen_fury_mled_write {
 	_IOR(OMEN_FURY_WMI_IOC_MAGIC, 0x00, struct omen_fury_wmi_caps)
 #define OMEN_FURY_WMI_MLED_WRITE \
 	_IOW(OMEN_FURY_WMI_IOC_MAGIC, 0x01, struct omen_fury_mled_write)
+#define OMEN_FURY_WMI_BEGIN_SESSION _IO(OMEN_FURY_WMI_IOC_MAGIC, 0x02)
+#define OMEN_FURY_WMI_END_SESSION _IO(OMEN_FURY_WMI_IOC_MAGIC, 0x03)
 
 #endif /* _UAPI_LINUX_OMEN_FURY_WMI_H */

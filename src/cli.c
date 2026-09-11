@@ -124,6 +124,8 @@ static void print_caps(const struct omen_fury_wmi_caps *caps,
 		printf(" validated");
 	if (caps->flags & OMEN_FURY_CAP_SERIALIZED)
 		printf(" serialized");
+	if (caps->flags & OMEN_FURY_CAP_EXCLUSIVE_SESSION)
+		printf(" exclusive-session");
 	printf("\nSlaves:");
 	for (i = 0; i < OMEN_FURY_SLAVE_COUNT; ++i)
 		printf(" %02X", caps->slaves[i]);
@@ -190,6 +192,12 @@ int main(int argc, char **argv)
 	protocol.write = omen_fury_transport_write;
 	protocol.sleep_context = NULL;
 	protocol.sleep = omen_fury_default_sleep;
+	result = omen_fury_transport_begin(&transport);
+	if (result) {
+		fprintf(stderr, "Cannot acquire exclusive bridge session: %s\n",
+			strerror(-result));
+		goto out;
+	}
 
 	if (!strcmp(options.command, "off")) {
 		if (options.positional_count || options.brightness_set) {
@@ -228,6 +236,15 @@ int main(int argc, char **argv)
 
 	if (result)
 		fprintf(stderr, "Operation failed: %s\n", strerror(-result));
+	{
+		int end_result = omen_fury_transport_end(&transport);
+
+		if (!result && end_result)
+			result = end_result;
+		if (end_result)
+			fprintf(stderr, "Cannot release bridge session: %s\n",
+				strerror(-end_result));
+	}
 	goto out;
 
 bad_usage:

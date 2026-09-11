@@ -33,7 +33,14 @@ length, or arbitrary payload. The bridge fixes all of these facts:
 
 It accepts only slaves `C0/C2/C4/C6` and registers
 `08/09/20/30/31/32/33`. Calls are serialized and firmware errors are returned
-to userspace. The device is root-only by default.
+to userspace. ABI v2 adds exclusive sessions so separate processes cannot
+interleave the register writes that form one lighting update. The device is
+root-only by default.
+
+The module normally loads only when both the HP system vendor and a known OMEN
+45L GT22 product-name prefix match. Developers can explicitly bypass this with
+`allow_unsupported=1`, but that override is dangerous and is not recommended
+for routine use.
 
 The module does **not** bind to or unbind from I2C, PCI, `i2c_i801`, or
 `spd5118`. Those drivers and the DIMM temperature sensors remain untouched.
@@ -168,7 +175,8 @@ Then remove only the files installed by this project and run `sudo depmod -a`.
 The userspace protocol takes injected write/sleep callbacks. Unit tests assert
 the exact per-DIMM static sequence, timing boundaries, and the Windows-derived
 reverse-begin/forward-commit Off staging without opening hardware. The CLI test
-suite also verifies dry-run behavior and raw-register rejection.
+suite also verifies dry-run behavior, raw-register rejection, and best-effort
+commit cleanup after failures during both begin and update stages.
 
 ```bash
 make test

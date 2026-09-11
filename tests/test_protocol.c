@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #include "protocol.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -15,6 +16,7 @@ struct recorder {
 	unsigned int delays[64];
 	size_t operation_count;
 	size_t delay_count;
+	size_t fail_at_operation;
 };
 
 static int record_write(void *context, uint8_t slave, uint8_t reg, uint8_t value)
@@ -25,6 +27,8 @@ static int record_write(void *context, uint8_t slave, uint8_t reg, uint8_t value
 	operation->slave = slave;
 	operation->reg = reg;
 	operation->value = value;
+	if (recorder->operation_count == recorder->fail_at_operation)
+		return -EIO;
 	return 0;
 }
 
@@ -116,9 +120,53 @@ static int test_parsers(void)
 	return 0;
 }
 
+static int test_partial_failure_cleanup(void)
+{
+	struct recorder recorder = { .fail_at_operation = 6 };
+	struct omen_fury_target_set targets;
+	struct omen_fury_protocol protocol = {
+		.write_context = &recorder, .write = record_write,
+		.sleep_context = &recorder, .sleep = record_sleep,
+	};
+	const uint8_t forward[] = { 0xc0, 0xc2, 0xc4, 0xc6 };
+	size_t i;
+
+	omen_fury_targets_all(&targets);
+	ASSERT(omen_fury_protocol_off(&protocol, &targets) == -EIO);
+	ASSERT(recorder.operation_count == 10);
+	for (i = 0; i < 4; ++i) {
+		ASSERT(recorder.operations[6 + i].slave == forward[i]);
+		ASSERT(recorder.operations[6 + i].reg == 0x08);
+		ASSERT(recorder.operations[6 + i].value == 0x44);
+	}
+	return 0;
+}
+
+static int test_begin_failure_cleanup(void)
+{
+	struct recorder recorder = { .fail_at_operation = 3 };
+	struct omen_fury_target_set targets;
+	struct omen_fury_protocol protocol = {
+		.write_context = &recorder, .write = record_write,
+		.sleep_context = &recorder, .sleep = record_sleep,
+	};
+
+	omen_fury_targets_all(&targets);
+	ASSERT(omen_fury_protocol_off(&protocol, &targets) == -EIO);
+	ASSERT(recorder.operation_count == 5);
+	ASSERT(recorder.operations[3].slave == 0xc4);
+	ASSERT(recorder.operations[3].reg == 0x08);
+	ASSERT(recorder.operations[3].value == 0x44);
+	ASSERT(recorder.operations[4].slave == 0xc6);
+	ASSERT(recorder.operations[4].reg == 0x08);
+	ASSERT(recorder.operations[4].value == 0x44);
+	return 0;
+}
+
 int main(void)
 {
-	if (test_single_static() || test_all_off_staging() || test_parsers())
+	if (test_single_static() || test_all_off_staging() || test_parsers() ||
+	    test_partial_failure_cleanup() || test_begin_failure_cleanup())
 		return 1;
 	puts("protocol tests: PASS");
 	return 0;

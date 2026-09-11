@@ -17,16 +17,25 @@ HP firmware MLED method
 
 ## Kernel boundary
 
-The bridge supports only two ioctls:
+The bridge supports four ioctls:
 
 - `OMEN_FURY_WMI_GET_CAPS` returns ABI version, flags, allowed DIMM slaves, and
   allowed registers.
 - `OMEN_FURY_WMI_MLED_WRITE` accepts exactly `{slave, reg, value, reserved}`.
+- `OMEN_FURY_WMI_BEGIN_SESSION` acquires exclusive ownership for a complete
+  multi-register operation.
+- `OMEN_FURY_WMI_END_SESSION` releases that ownership. Closing the file also
+  releases it, so a crashed client cannot permanently strand the bridge.
 
 The kernel fixes the GUID, signature, command, command type, method ID, data
 size, and padding. It rejects unknown slaves, unknown registers, and nonzero
-reserved fields. A mutex serializes complete WMI evaluations. It exposes no
+reserved fields. Each firmware call is serialized, and an exclusive session
+prevents separate clients from interleaving multi-register sequences. It exposes no
 general WMI method, command, payload, timing, color, effect, or profile API.
+
+Module loading is limited to HP OMEN 45L GT22 product-name matches. The
+read-only `allow_unsupported=1` module parameter is an explicit dangerous
+override for controlled development; the HP vendor string alone is not enough.
 
 The module does not register an I2C adapter or client, access the I801 PCI
 function directly, or unbind any driver. `i2c_i801` and all `spd5118` devices

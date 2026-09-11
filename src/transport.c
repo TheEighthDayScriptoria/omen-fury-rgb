@@ -30,6 +30,8 @@ int omen_fury_transport_open(struct omen_fury_transport *transport,
 
 void omen_fury_transport_close(struct omen_fury_transport *transport)
 {
+	if (transport->session_active)
+		(void)omen_fury_transport_end(transport);
 	if (transport->fd >= 0)
 		close(transport->fd);
 	transport->fd = -1;
@@ -44,7 +46,8 @@ int omen_fury_transport_get_caps(struct omen_fury_transport *transport,
 		caps->struct_size = sizeof(*caps);
 		caps->flags = OMEN_FURY_CAP_MLED_WRITE |
 			OMEN_FURY_CAP_KERNEL_VALIDATION |
-			OMEN_FURY_CAP_SERIALIZED;
+			OMEN_FURY_CAP_SERIALIZED |
+			OMEN_FURY_CAP_EXCLUSIVE_SESSION;
 		memcpy(caps->slaves, dry_slaves, sizeof(dry_slaves));
 		memcpy(caps->registers, dry_registers, sizeof(dry_registers));
 		return 0;
@@ -53,6 +56,28 @@ int omen_fury_transport_get_caps(struct omen_fury_transport *transport,
 		return -errno;
 	if (caps->abi_version != OMEN_FURY_WMI_ABI_VERSION)
 		return -EPROTONOSUPPORT;
+	return 0;
+}
+
+int omen_fury_transport_begin(struct omen_fury_transport *transport)
+{
+	if (transport->session_active)
+		return -EALREADY;
+	if (!transport->dry_run &&
+	    ioctl(transport->fd, OMEN_FURY_WMI_BEGIN_SESSION) < 0)
+		return -errno;
+	transport->session_active = true;
+	return 0;
+}
+
+int omen_fury_transport_end(struct omen_fury_transport *transport)
+{
+	if (!transport->session_active)
+		return -EINVAL;
+	if (!transport->dry_run &&
+	    ioctl(transport->fd, OMEN_FURY_WMI_END_SESSION) < 0)
+		return -errno;
+	transport->session_active = false;
 	return 0;
 }
 

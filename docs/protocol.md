@@ -43,3 +43,8 @@ The same staged begin/commit ordering surrounds the per-DIMM static settings:
 
 Brightness is kept as the validated protocol byte (`0..255`); the project does
 not yet claim that this byte is perceptually linear or a percentage.
+
+If a write or delay fails after one or more `08:53` begin operations, userspace
+retains the original error while issuing best-effort `08:44` writes to every
+DIMM whose transfer was opened. A cleanup failure never prevents cleanup from
+being attempted on the remaining DIMMs.

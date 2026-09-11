@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #include "protocol.h"
 
+#include <stdbool.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,59 @@ static int send(struct omen_fury_protocol *protocol, uint8_t slave,
 	if (result)
 		return result;
 	return delay_ms ? protocol->sleep(protocol->sleep_context, delay_ms) : 0;
+}
+
+static int begin_transfers(struct omen_fury_protocol *protocol,
+			   const struct omen_fury_target_set *targets,
+			   bool begun[OMEN_FURY_MAX_TARGETS])
+{
+	size_t i;
+	int result;
+
+	for (i = targets->count; i > 0; --i) {
+		size_t target = i - 1;
+
+		result = protocol->write(protocol->write_context,
+					 targets->values[target], 0x08, 0x53);
+		if (result)
+			return result;
+		begun[target] = true;
+		result = protocol->sleep(protocol->sleep_context, 50);
+		if (result)
+			return result;
+	}
+	return 0;
+}
+
+/*
+ * Commit every transfer that was successfully begun. Keep the primary error,
+ * but never let one failed commit prevent best-effort cleanup of other DIMMs.
+ */
+static int close_open_transfers(struct omen_fury_protocol *protocol,
+				const struct omen_fury_target_set *targets,
+				bool begun[OMEN_FURY_MAX_TARGETS],
+				int primary_error)
+{
+	size_t i;
+
+	for (i = 0; i < targets->count; ++i) {
+		int result;
+
+		if (!begun[i])
+			continue;
+		result = protocol->write(protocol->write_context,
+					 targets->values[i], 0x08, 0x44);
+		if (result) {
+			if (!primary_error)
+				primary_error = result;
+			continue;
+		}
+		begun[i] = false;
+		result = protocol->sleep(protocol->sleep_context, 50);
+		if (result && !primary_error)
+			primary_error = result;
+	}
+	return primary_error;
 }
 
 int omen_fury_targets_all(struct omen_fury_target_set *targets)
@@ -110,41 +164,34 @@ int omen_fury_default_sleep(void *context, unsigned int milliseconds)
 int omen_fury_protocol_off(struct omen_fury_protocol *protocol,
 			   const struct omen_fury_target_set *targets)
 {
+	bool begun[OMEN_FURY_MAX_TARGETS] = { false };
 	size_t i;
 	int result;
 
 	/* Windows begins transfers in reverse DIMM order. */
-	for (i = targets->count; i > 0; --i) {
-		result = send(protocol, targets->values[i - 1], 0x08, 0x53, 50);
-		if (result)
-			return result;
-	}
+	result = begin_transfers(protocol, targets, begun);
+	if (result)
+		return close_open_transfers(protocol, targets, begun, result);
 	for (i = 0; i < targets->count; ++i) {
 		result = send(protocol, targets->values[i], 0x20, 0x00, 5);
 		if (result)
-			return result;
+			return close_open_transfers(protocol, targets, begun, result);
 	}
 	/* Windows completes transfers in forward DIMM order. */
-	for (i = 0; i < targets->count; ++i) {
-		result = send(protocol, targets->values[i], 0x08, 0x44, 50);
-		if (result)
-			return result;
-	}
-	return 0;
+	return close_open_transfers(protocol, targets, begun, 0);
 }
 
 int omen_fury_protocol_static(struct omen_fury_protocol *protocol,
 			      const struct omen_fury_target_set *targets,
 			      const uint8_t rgb[3], uint8_t brightness)
 {
+	bool begun[OMEN_FURY_MAX_TARGETS] = { false };
 	size_t i;
 	int result;
 
-	for (i = targets->count; i > 0; --i) {
-		result = send(protocol, targets->values[i - 1], 0x08, 0x53, 50);
-		if (result)
-			return result;
-	}
+	result = begin_transfers(protocol, targets, begun);
+	if (result)
+		return close_open_transfers(protocol, targets, begun, result);
 	for (i = 0; i < targets->count; ++i) {
 		const uint8_t slave = targets->values[i];
 		const uint8_t writes[][2] = {
@@ -156,13 +203,9 @@ int omen_fury_protocol_static(struct omen_fury_protocol *protocol,
 		for (step = 0; step < sizeof(writes) / sizeof(writes[0]); ++step) {
 			result = send(protocol, slave, writes[step][0], writes[step][1], 5);
 			if (result)
-				return result;
+				return close_open_transfers(protocol, targets, begun,
+							    result);
 		}
 	}
-	for (i = 0; i < targets->count; ++i) {
-		result = send(protocol, targets->values[i], 0x08, 0x44, 50);
-		if (result)
-			return result;
-	}
-	return 0;
+	return close_open_transfers(protocol, targets, begun, 0);
 }
