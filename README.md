@@ -183,9 +183,12 @@ make test
 ```
 
 See [architecture](docs/architecture.md), [protocol notes](docs/protocol.md),
-and [future work](TODO.md). The transport/protocol split is intended to make a
-future OpenRGB controller and eventual mainline kernel interface possible
-without preserving this temporary ioctl as the permanent device model.
+and [future work](TODO.md). The protocol notes also preserve the
+Windows-derived Wave, Breathing, Blinking, and Color Cycle request sequences,
+clearly separated from the currently implemented subset.
+The transport/protocol split is intended to make a future OpenRGB controller
+and eventual mainline kernel interface possible without preserving this
+temporary ioctl as the permanent device model.
 
 ## License
 
